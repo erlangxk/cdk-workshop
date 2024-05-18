@@ -1,19 +1,25 @@
-import { Duration, Stack, StackProps } from 'aws-cdk-lib';
-import * as sns from 'aws-cdk-lib/aws-sns';
-import * as subs from 'aws-cdk-lib/aws-sns-subscriptions';
-import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as cdk from 'aws-cdk-lib';
+import * as apigw from 'aws-cdk-lib/aws-apigateway';
 import { Construct } from 'constructs';
+import { HitCounter } from './hitcounter';
 
-export class SimpleAppStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+export class SimpleAppStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const queue = new sqs.Queue(this, 'SimpleAppQueue', {
-      visibilityTimeout: Duration.seconds(300)
+    const lambda = new cdk.aws_lambda.Function(this, 'HelloHandler', {
+      runtime: cdk.aws_lambda.Runtime.NODEJS_20_X,
+      code: cdk.aws_lambda.Code.fromAsset('lambda'),
+      handler: 'hello.handler'
     });
 
-    const topic = new sns.Topic(this, 'SimpleAppTopic');
+    const counter = new HitCounter(this, 'HelloHitCounter',{
+      downstream: lambda
+    });
 
-    topic.addSubscription(new subs.SqsSubscription(queue));
+    new apigw.LambdaRestApi(this, 'EndPoint', {
+      handler: counter.handler
+    });
+
   }
 }
